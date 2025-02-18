@@ -248,7 +248,7 @@ filtered_df_display = filtered_df_display.rename(columns=column_rename_map)
 
 # Row 3: Data Table
 with row3[0]:
-    st.dataframe(filtered_df_display)
+    show_map(filtered_df)
 
-# Show the filtered map
-show_map(filtered_df)
+with row3[1]:
+    st.dataframe(filtered_df_display)
