@@ -47,9 +47,9 @@ st.sidebar.markdown("""
 
 """)
 
-# Read and preprocess the CSV data
-filename = 'Points.csv'  # replace with your actual CSV file path
-df = pd.read_csv(filename)
+# Read and preprocess the Parquet data
+filename = 'Points.parquet'  # replace with your actual Parquet file path
+df = pd.read_parquet(filename)
 
 # Determine the range for Plasticity Index slider
 plasticity_rng = (df['PlasticityIndex'].min(), df['PlasticityIndex'].max())
@@ -67,7 +67,7 @@ def get_color(plasticity_index):
     else:
         return 'green'
 
-
+@st.cache_resource
 def create_map(filter_df, geojson_file):
     # Check if the filtered DataFrame is empty
     if filter_df.empty:
@@ -238,20 +238,17 @@ column_rename_map = {
     'Easting': 'E',
     'Northing': 'N',
     'Latitude': 'Lat',
-    'Longitude': 'Lon'
+    'Longitude': 'Long',
+    'Postcode': 'PC',
+    'Fines': 'Fines (%)'
 }
 
+# Rename the columns
 filtered_df_display = filtered_df_display.rename(columns=column_rename_map)
 
-# Row 3: Map and DataFrame
+# Row 3: Data Table
 with row3[0]:
-    st.subheader("Map", divider='grey')
+    st.dataframe(filtered_df_display)
 
-    # Show the map with the filtered data
-    show_map(filtered_df)
-
-with row3[1]:
-    st.subheader("Table", divider='grey')
-    st.dataframe(filtered_df_display, hide_index=True)
-
-
+# Show the filtered map
+show_map(filtered_df)
