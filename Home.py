@@ -28,28 +28,25 @@ def add_logo(logo_url: str, width: int = 250, height: int = 300):
 
 # URL of the logo image
 logo_url = "https://grmdevelopment.wpengine.com/wp-content/uploads/2020/07/GRM-master-logo-02.png"
-
 # Add the logo with a specified height and resize using CSS
 add_logo(logo_url, height=100)
+
+# Display the logo image directly to check if it's accessible
+st.sidebar.image(logo_url, width=250)  # Display the image directly
 
 # Set the title and sidebar header
 st.markdown("## Postcode Data")
 
 # Add a paragraph to the sidebar
 st.sidebar.markdown("""
-
      This app allows you to explore GRM project data through an interactive map and detailed project information. 
-
      You can filter projects by Plasticity Index, Project ID, and Geology Code.
-
      The map shows project locations with color-coded markers based on Plasticity Index values, helping you compare 
      laboratory data with geology and location information, as well as explore relationships with nearby projects.
-
 """)
-
-# Read and preprocess the Parquet data
-filename = 'Points.parquet'  # replace with your actual Parquet file path
-df = pd.read_parquet(filename)
+# Read and preprocess the CSV data
+filename = 'Points.csv'  # replace with your actual CSV file path
+df = pd.read_csv(filename)
 
 # Determine the range for Plasticity Index slider
 plasticity_rng = (df['PlasticityIndex'].min(), df['PlasticityIndex'].max())
@@ -67,7 +64,7 @@ def get_color(plasticity_index):
     else:
         return 'green'
 
-@st.cache_resource
+
 def create_map(filter_df, geojson_file):
     # Check if the filtered DataFrame is empty
     if filter_df.empty:
@@ -238,17 +235,20 @@ column_rename_map = {
     'Easting': 'E',
     'Northing': 'N',
     'Latitude': 'Lat',
-    'Longitude': 'Long',
-    'Postcode': 'PC',
-    'Fines': 'Fines (%)'
+    'Longitude': 'Lon'
 }
 
-# Rename the columns
 filtered_df_display = filtered_df_display.rename(columns=column_rename_map)
 
-# Row 3: Data Table
+# Row 3: Map and DataFrame
 with row3[0]:
+    st.subheader("Map", divider='grey')
+
+    # Show the map with the filtered data
     show_map(filtered_df)
 
 with row3[1]:
-    st.dataframe(filtered_df_display)
+    st.subheader("Table", divider='grey')
+    st.dataframe(filtered_df_display, hide_index=True)
+
+
