@@ -214,7 +214,8 @@ if show_latlong:
     columns_to_display.extend(latlong_columns)
 
 # Always show these columns and reorder them
-always_display_columns = ['ProjectID', 'LocationID', 'Postcode', 'GeologyCode', 'Fines', 'PlasticLimit', 'LiquidLimit',
+always_display_columns = ['ProjectID', 'LocationID', 'DepthValue', 'Postcode', 'GeologyCode', 'Fines', 'PlasticLimit',
+                          'LiquidLimit',
                           'PlasticityIndex', 'MoistureContent']
 
 # Combine always displayed columns with selected columns
@@ -250,5 +251,3 @@ with row3[0]:
 with row3[1]:
     st.subheader("Table", divider='grey')
     st.dataframe(filtered_df_display, hide_index=True)
-
-
