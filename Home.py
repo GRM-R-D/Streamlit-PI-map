@@ -45,7 +45,7 @@ st.sidebar.markdown("""
      laboratory data with geology and location information, as well as explore relationships with nearby projects.
 """)
 # Read and preprocess the CSV data
-filename = 'Points.csv'  # replace with your actual CSV file path
+filename = 'Pointdate.csv'  # replace with your actual CSV file path
 df = pd.read_csv(filename)
 
 # Determine the range for Plasticity Index slider
@@ -116,6 +116,7 @@ def create_map(filter_df, geojson_file):
             f"<b>Liquid Limit:</b> {row['LiquidLimit']}<br>"
             f"<b>Plasticity Index:</b> {row['PlasticityIndex']}<br>"
             f"<b>Moisture Content:</b> {row['MoistureContent']}"
+            f"<b>Date:</b> {row['Date'].strftime('%d/%m/%Y')}<br>"
             f"</div>"
         )
         popup = folium.Popup(popup_content, max_width=300)
@@ -240,7 +241,6 @@ column_rename_map = {
     'Northing': 'N',
     'Latitude': 'Lat',
     'Longitude': 'Lon'
-
 }
 
 filtered_df_display = filtered_df_display.rename(columns=column_rename_map)
