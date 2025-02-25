@@ -109,6 +109,8 @@ def create_map(filter_df, geojson_file):
             f"<div style='font-size: 14px;'>"
             f"<b>Postcode:</b> {row['Postcode']}<br>"
             f"<b>Project ID:</b> {row['ProjectID']}<br>"
+            f"<b>Location ID:</b> {row['LocationID']}<br>"
+            f"<b>Depth (m):</b> {row['DepthValue']}<br>"
             f"<b>Geology:</b> {row['GeologyCode']}<br>"
             f"<b>Plastic Limit:</b> {row['PlasticLimit']}<br>"
             f"<b>Liquid Limit:</b> {row['LiquidLimit']}<br>"
@@ -229,6 +231,7 @@ filtered_df_display = filtered_df[columns_to_display]
 
 column_rename_map = {
     'GeologyCode': 'Geology',
+    'DepthValue': 'Depth (m)',
     'MoistureContent': 'MC (%)',
     'PlasticityIndex': 'PI (%)',
     'PlasticLimit': 'PL (%)',
@@ -237,6 +240,7 @@ column_rename_map = {
     'Northing': 'N',
     'Latitude': 'Lat',
     'Longitude': 'Lon'
+
 }
 
 filtered_df_display = filtered_df_display.rename(columns=column_rename_map)
