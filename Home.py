@@ -116,7 +116,7 @@ def create_map(filter_df, geojson_file):
             f"<b>Liquid Limit:</b> {row['LiquidLimit']}<br>"
             f"<b>Plasticity Index:</b> {row['PlasticityIndex']}<br>"
             f"<b>Moisture Content:</b> {row['MoistureContent']}"
-            f"<b>Date:</b> {row['Date'].strftime('%d/%m/%Y')}<br>"
+            f"<b>Date:</b> {pd.to_datetime(row['Date'], dayfirst=True).strftime('%d/%m/%Y')}<br>"
             f"</div>"
         )
         popup = folium.Popup(popup_content, max_width=300)
