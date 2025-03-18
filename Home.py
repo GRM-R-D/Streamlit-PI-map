@@ -3,7 +3,6 @@ import pandas as pd
 import folium
 from folium.plugins import MarkerCluster, Geocoder
 from streamlit_folium import folium_static
-import streamlit.components.v1 as components
 
 # Set up the page configuration
 st.set_page_config(page_title="Postcode Data", page_icon="🗄️", layout="wide")
@@ -40,16 +39,13 @@ st.markdown("## Postcode Data")
 # Add a paragraph to the sidebar
 st.sidebar.markdown("""
      This app allows you to explore GRM project data through an interactive map and detailed project information. 
-     You can filter projects by Plasticity Index, Project ID, and Geology Code.
-     The map shows project locations with color-coded markers based on Plasticity Index values, helping you compare 
-     laboratory data with geology and location information, as well as explore relationships with nearby projects.
+     You can filter projects by Project ID and Geology Code.
+     The map shows project locations, helping you compare laboratory data with geology and location information.
 """)
-# Read and preprocess the CSV data
-filename = 'Pointdate.csv'  # replace with your actual CSV file path
-df = pd.read_csv(filename)
 
-# Determine the range for Plasticity Index slider
-plasticity_rng = (df['PlasticityIndex'].min(), df['PlasticityIndex'].max())
+# Read and preprocess the Parquet data
+filename = 'POINTS.parquet'  # replace with your actual Parquet file path
+df = pd.read_parquet(filename)
 
 geojson_file = 'postcodes.geojson'
 
@@ -100,7 +96,17 @@ def create_map(filter_df, geojson_file):
         )
     ).add_to(m)
 
-    marker_cluster = MarkerCluster().add_to(m)
+    marker_cluster = MarkerCluster(
+        icon_create_function="""function(cluster) {
+                var count = cluster.getChildCount();
+                var size = Math.min(30 + Math.pow(count, 0.5) * 5, 70);  // Exponential growth for larger clusters
+                return L.divIcon({
+                    html: '<div style="background-color: blue; border-radius: 50%; padding: 10px; text-align: center; font-size: 16px; color: white; width: ' + size + 'px; height: ' + size + 'px; display: flex; align-items: center; justify-content: center; opacity: 0.7;"><b>' + count + '</b></div>',
+                    className: 'marker-cluster',
+                    iconSize: new L.Point(size, size)
+                });
+            }"""
+    ).add_to(m)
 
     # Iterate over the filtered DataFrame rows and add markers to the cluster
     for _, row in filter_df.iterrows():
@@ -110,12 +116,12 @@ def create_map(filter_df, geojson_file):
             f"<b>Postcode:</b> {row['Postcode']}<br>"
             f"<b>Project ID:</b> {row['ProjectID']}<br>"
             f"<b>Location ID:</b> {row['LocationID']}<br>"
-            f"<b>Depth (m):</b> {row['DepthValue']}<br>"
-            f"<b>Geology:</b> {row['GeologyCode']}<br>"
+            f"<b>Depth (m):</b> {row['Depth']}<br>"
+            f"<b>Geology:</b> {row['Geology Code']}<br>"
             f"<b>Plastic Limit:</b> {row['PlasticLimit']}<br>"
             f"<b>Liquid Limit:</b> {row['LiquidLimit']}<br>"
             f"<b>Plasticity Index:</b> {row['PlasticityIndex']}<br>"
-            f"<b>Moisture Content:</b> {row['MoistureContent']}"
+            f"<b>Moisture Content:</b> {row['MoistureContent']}<br>"
             f"<b>Date:</b> {pd.to_datetime(row['Date'], dayfirst=True).strftime('%d/%m/%Y')}<br>"
             f"</div>"
         )
@@ -130,13 +136,13 @@ def create_map(filter_df, geojson_file):
 
 def show_map(filtered_df):
     m = create_map(filtered_df, geojson_file)  # Pass the GeoJSON file
-    folium_static(m)  # Display the map
+    return m  # Return the map object so it can be used outside
 
 
 # Define the layout using Streamlit's grid system
 row1 = st.columns([2, 1, 1])
-row2 = st.columns([1, 1])
-row3 = st.columns([1, 1])
+row2 = st.columns([3, 1])
+row3 = st.columns([1])
 
 # Initialize session state variables if not already present
 if 'selected_project_id' not in st.session_state:
@@ -144,12 +150,26 @@ if 'selected_project_id' not in st.session_state:
 if 'selected_geology_code' not in st.session_state:
     st.session_state.selected_geology_code = ""
 
+plasticity_options = ["< 10", "10 - 20", "20 - 40", ">= 40"]
+icon_map = {
+    "< 10": "🟢 < 10",  # Green circle
+    "10 - 20": "🟡 10 - 20",  # Yellow circle
+    "20 - 40": "🟠 20 - 40",  # Orange circle
+    ">= 40": "🔴 &ge; 40",  # Red circle (HTML entity for >=)
+}
+
+
+def format_func(option):
+    return icon_map[option]
+
 # Row 1: Filters and Searches
 with row1[0]:
-    with st.expander("Plasticity Index Filter", expanded=False):
-        plasticity_min, plasticity_max = plasticity_rng
-        plasticity_filter = st.slider("Plasticity Index", min_value=int(plasticity_min), max_value=int(plasticity_max),
-                                      value=(int(plasticity_min), int(plasticity_max)))
+    selected_plasticity = st.pills(
+        "Select Plasticity Index",
+        options=plasticity_options,
+        format_func=format_func,
+        selection_mode="multi"
+    )
 
 with row1[1]:
     with st.expander("Project ID Search", expanded=False):
@@ -166,10 +186,10 @@ with row1[2]:
         # Update Geology Code options based on selected Project ID
         if st.session_state.selected_project_id:
             geology_codes = sorted(
-                df[df['ProjectID'].astype(str) == st.session_state.selected_project_id]['GeologyCode'].astype(
+                df[df['ProjectID'].astype(str) == st.session_state.selected_project_id]['Geology Code'].astype(
                     str).unique())
         else:
-            geology_codes = sorted(df['GeologyCode'].astype(str).unique())
+            geology_codes = sorted(df['Geology Code'].astype(str).unique())
 
         selected_geology_code = st.selectbox("Select Geology Code", options=[""] + geology_codes, key="geology_code")
 
@@ -177,81 +197,70 @@ with row1[2]:
         if selected_geology_code != st.session_state.selected_geology_code:
             st.session_state.selected_geology_code = selected_geology_code
 
-# Apply filters based on selections
-filtered_df = df[(df['PlasticityIndex'] >= plasticity_filter[0]) &
-                 (df['PlasticityIndex'] <= plasticity_filter[1])]
 
-if st.session_state.selected_project_id:
-    filtered_df = filtered_df[filtered_df['ProjectID'].astype(str) == st.session_state.selected_project_id]
+filtered_df = df.copy()  # Start with a copy of the original DataFrame
 
-if st.session_state.selected_geology_code:
-    filtered_df = filtered_df[filtered_df['GeologyCode'].astype(str) == st.session_state.selected_geology_code]
+# Apply ProjectID filter
+if selected_project_id:
+    filtered_df = filtered_df[filtered_df['ProjectID'].astype(str) == selected_project_id]
 
-# Row 2: Legend and Checkboxes
-with row2[0]:
-    legend_html = """<div style="position: fixed; bottom: 10px; left: 10px; width: auto; height: 40px; 
-    background-color: black; border:2px solid grey; border-radius:8px; z-index:9999; font-size:14px; padding: 10px 
-    10px 25px 10px;; white-space: nowrap; font-family: 'Arial', sans-serif; color: #FAFAFA;"> <b style="font-family: 
-    'Arial', sans-serif; display: block; margin-bottom: 10px;">Plasticity Index</b> <i style="background:green; 
-    width: 20px; height: 20px; display: inline-block; margin-right: 5px;"></i> < 10 <i style="background:#eed9c4; 
-    width: 20px; height: 20px; display: inline-block; margin-right: 5px; margin-left: 10px;"></i> 10 - 20 <i 
-    style="background:orange; width: 20px; height: 20px; display: inline-block; margin-right: 5px; margin-left: 
-    10px;"></i> 20 - 40 <i style="background:red; width: 20px; height: 20px; display: inline-block; margin-right: 
-    5px; margin-left: 10px;"></i> ≥ 40 </div>"""
-    components.html(legend_html, height=100)
+# Apply Geology Code filter
+if selected_geology_code:
+    filtered_df = filtered_df[filtered_df['Geology Code'].astype(str) == selected_geology_code]
 
-with row2[1]:
-    show_utm = st.checkbox('Show UTM Coordinates', value=True)
-    show_latlong = st.checkbox('Show LATLONG Coordinates', value=True)
-    st.caption("Use the checkboxes to toggle the display of UTM and Latitude/Longitude coordinates in the data table.")
+# Apply Plasticity Index filter
+plasticity_filters = []
+if selected_plasticity:
+    if "< 10" in selected_plasticity:
+        plasticity_filters.append((filtered_df['PlasticityIndex'] < 10))
+    if "10 - 20" in selected_plasticity:
+        plasticity_filters.append((filtered_df['PlasticityIndex'] >= 10) & (filtered_df['PlasticityIndex'] < 20))
+    if "20 - 40" in selected_plasticity:
+        plasticity_filters.append((filtered_df['PlasticityIndex'] >= 20) & (filtered_df['PlasticityIndex'] < 40))
+    if ">= 40" in selected_plasticity:
+        plasticity_filters.append((filtered_df['PlasticityIndex'] >= 40))
+
+    if plasticity_filters:
+        filtered_df = filtered_df[pd.concat(plasticity_filters, axis=1).any(axis=1)]
 
 # Define column groups
-utm_columns = ['Easting', 'Northing']
-latlong_columns = ['Latitude', 'Longitude']
-
-# Determine which columns to display
 columns_to_display = []
-if show_utm:
-    columns_to_display.extend(utm_columns)
-if show_latlong:
-    columns_to_display.extend(latlong_columns)
+
 
 # Always show these columns and reorder them
-always_display_columns = ['Date', 'ProjectID', 'LocationID', 'DepthValue', 'Postcode', 'GeologyCode', 'Fines', 'PlasticLimit',
+always_display_columns = ['Date', 'ProjectID', 'LocationID', 'Depth', 'Postcode', 'Geology Code', 'Fines',
+                          'PlasticLimit',
                           'LiquidLimit',
                           'PlasticityIndex', 'MoistureContent']
 
 # Combine always displayed columns with selected columns
-columns_to_display = always_display_columns + columns_to_display
-
-# Ensure only existing columns are included
-columns_to_display = [col for col in columns_to_display if col in df.columns]
+columns_to_display = always_display_columns
 
 # Filter DataFrame for display
 filtered_df_display = filtered_df[columns_to_display]
 
 column_rename_map = {
-    'GeologyCode': 'Geology',
-    'DepthValue': 'Depth (m)',
+    'Geology Code': 'Geology',
+    'Depth': 'Depth (m)',
     'MoistureContent': 'MC (%)',
     'PlasticityIndex': 'PI (%)',
     'PlasticLimit': 'PL (%)',
     'LiquidLimit': 'LL (%)',
-    'Easting': 'E',
-    'Northing': 'N',
     'Latitude': 'Lat',
     'Longitude': 'Lon'
 }
 
 filtered_df_display = filtered_df_display.rename(columns=column_rename_map)
 
-# Row 3: Map and DataFrame
-with row3[0]:
+# Row 2: Map
+with row2[0]:
     st.subheader("Map", divider='grey')
 
     # Show the map with the filtered data
-    show_map(filtered_df)
+    m = show_map(filtered_df)
+    folium_static(m, width=1100, height=600)  # Adjust the width and height here
 
-with row3[1]:
+# Row 3: Dataframe
+with row3[0]:
     st.subheader("Table", divider='grey')
     st.dataframe(filtered_df_display, hide_index=True)
